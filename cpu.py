@@ -9,6 +9,7 @@ class AddressingModes(object):
 	INDIRECT_X = 8
 	INDIRECT_Y = 9
 	ACCUMULATOR = 10
+	RELATIVE = 11
 
 
 class CPU(object):
@@ -38,9 +39,10 @@ class CPU(object):
 			return
 		op_code = self.get_memory(self.program_counter)
 		command, addressing_mode, bytes, cycles = INSTRUCTIONS_MAP[op_code]
-		command(self, addressing_mode)
+		operand = get_operand_address(addressing_mode)
 		self.program_counter += bytes
-		self.cycles = cycles - 1
+		command(self, addressing_mode, operand))
+		self.cycles += cycles - 1
 		
 		
 	def execute(self):
@@ -53,6 +55,12 @@ class CPU(object):
 			
 	def set_memory(self, byte_number, value):
 		self.memory[byte_number] = value
+		
+	
+	def checkPage(self, address1, address2):
+		# If the two address refer to different pages add 1 to the cycle
+		if address1 & 0xFF00 != address2 & 0xFF00:
+			self.cycles += 1
 		
 		
 	def get_operand_address(self, addressing_mode):
@@ -69,9 +77,15 @@ class CPU(object):
 		elif addressing_mode == AddressingModes.ABSOLUTE:
 			return data * 0xFF + data2
 		elif addressing_mode == AddressingModes.ABSOLUTE_X:
-			return data * 0xFF + data2 + self.x
+			address = data * 0xFF + data2
+			result = address + self.x
+			self.checkPage(address, result)
+			return result
 		elif addressing_mode == AddressingModes.ABSOLUTE_Y:
-			return data * 0xFF + data2 + self.y
+			address = data * 0xFF + data2
+			result = address + self.y
+			self.checkPage(address, result)
+			return result
 		elif addressing_mode == AddressingModes.INDIRECT_X:
 			low_byte = self.get_memory((data + self.x) % 0xFF)
 			high_byte = self.get_memory((data + self.x +1) % 0xFF) * 0xFF
@@ -79,7 +93,15 @@ class CPU(object):
 		elif addressing_mode == AddressingModes.INDIRECT_Y:
 			low_byte = self.get_memory(data)
 			high_byte = self.get_memory((data + 1) % 0xFF) * 0xFF
-			return low_byte + high_byte + self.y
+			address = low_byte + high_byte
+			result = address + self.y
+			self.checkPage(address, result)
+			return result
+		elif addressing_mode == AddressingModes.RELATIVE:
+			offset = data
+			if offset >= 0x80: # Negative
+				offset -= 0x100
+			return offset
 			
 	def updateStatusRegister(self, value):
 		if value == 0:
@@ -92,10 +114,9 @@ class CPU(object):
 		else:
 			self.negative = 0
 			
-	def adc(self, addressing_mode):
+	def adc(self, address_mode, operand_address):
 		""" Add with Carry """
-		address = self.get_operand_address(addressing_mode)
-		value_to_add = self.get_memory(address)
+		value_to_add = self.get_memory(operand_address)
 		self.accumulator = self.accumulator + value_to_add + self.carry
 		if self.accumulator > 0xFF:
 			self.carry = 1
@@ -104,13 +125,12 @@ class CPU(object):
 			self.carry = 0
 		self.updateStatusRegister(self.accumulator)
 		
-	def and_(self, addressing_mode):
-		operand_address = self.get_operand_address(addressing_mode)
+	def and_(self, address_mode, operand_address):
 		operand = self.get_memory(operand_address)
 		self.accumulator = self.accumulator & operand
 		self.updateStatusRegister(self.accumulator)
 		
-	def asl(self, addressing_mode):
+	def asl(self, address_mode, operand_address):
 		if addressing_mode == AddressingModes.ACCUMULATOR:
 			self.accumulator *= 2
 			if self.accumulator > 0xFF:
@@ -120,7 +140,7 @@ class CPU(object):
 				self.carry = 0
 			self.updateStatusRegister(self.accumulator)
 		else:
-			value = self.get_memory(self.get_operand_address(addressing_mode))
+			value = self.get_memory(operand_address))
 			value *= 2
 			if value > 0xFF:
 				self.carry = 1
@@ -128,8 +148,46 @@ class CPU(object):
 			else:
 				self.carry = 0
 			self.updateStatusRegister(value)
-			self.set_memory(self.get_operand_address(addressing_mode), value)
+			self.set_memory(operand_address, value)
+			
+	def bcc(self, address_mode, offset):
+		if self.c == 0:
+			self.cycles += 1
+			self.checkPage(self.program_counter, self.program_counter+offset)
+			self.program_counter += offset
+	
+	def bcs(self, address_mode, offset):
+		if self.c == 1:
+			self.cycles += 1
+			self.checkPage(self.program_counter, self.program_counter+offset)
+			self.program_counter += offset
+			
+	def beq(self, address_mode, offset):
+		if self.z == 1:
+			self.cycles += 1
+			self.checkPage(self.program_counter, self.program_counter+offset)
+			self.program_counter += offset
+			
+	def bit(self, address_mode, operand_address):
+		operand = self.get_memory(operand_address)
+		result = self.accumulator & operand
+		if result == 0:
+			self.zero = 1
+		else:
+			self.zero = 0
 		
+		if operand & 0x40:
+			self.overflow = 1
+		else:
+			self.overflow = 0
+		
+		if operand & 0x80:
+			self.negative = 1
+		else:
+			self.negative = 0
+			
+	
+	
 
 INSTRUCTIONS_MAP = {
 	# ADC
@@ -156,6 +214,17 @@ INSTRUCTIONS_MAP = {
 	0x16: (CPU.asl, AddressingModes.ZERO_PAGE_X, 2, 6),
 	0x0E: (CPU.asl, AddressingModes.ABSOLUTE, 3, 6),
 	0x1E: (CPU.asl, AddressingModes.ABSOLUTE_X, 3, 7),
+	# BCC
+	0x90: (CPU.bcc, AddressingModes.RELATIVE, 2, 2),
+	# BCS
+	0xB0: (CPU.bcs, AddressingModes.RELATIVE, 2, 2),
+	# BEQ
+	0xB0: (CPU.beq, AddressingModes.RELATIVE, 2, 2),
+	# BIT
+	0x24: (CPU.bit, AddressingModes.ZERO_PAGE, 2, 3),
+	0x2C: (CPU.bit, AddressingModes.ABSOLUTE, 3, 4),
+	
+	
 }
 		
 if __name__ == '__main__':
