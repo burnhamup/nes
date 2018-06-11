@@ -6,10 +6,12 @@ class AddressingModes(object):
     ABSOLUTE = 5
     ABSOLUTE_X = 6
     ABSOLUTE_Y = 7
+    ABSOLUTE_X_NO_PAGE = 12
     INDIRECT_X = 8
     INDIRECT_Y = 9
     ACCUMULATOR = 10
     RELATIVE = 11
+    IMPLIED = 12
 
 
 class CPU(object):
@@ -32,6 +34,17 @@ class CPU(object):
         self.memory = [0] * 0xFFFF
 
         self.cycles = 0
+
+    @property
+    def status_register(self):
+        return self.carry +\
+               self.zero * 0x2 +\
+               self.interrupt_disable * 0x4 +\
+               self.decimal_mode * 0x8 +\
+               self.break_command * 0x10 + \
+               1 * 0x20 + \
+               self.overflow * 0x40 +\
+               self.negative * 0x80
 
     def tick(self):
         if self.cycles > 0:
@@ -73,6 +86,10 @@ class CPU(object):
             result = address + self.x
             self.check_page(address, result)
             return result
+        elif addressing_mode == AddressingModes.ABSOLUTE_X_NO_PAGE:
+            address = data * 0xFF + data2
+            result = address + self.x
+            return result
         elif addressing_mode == AddressingModes.ABSOLUTE_Y:
             address = data * 0xFF + data2
             result = address + self.y
@@ -94,6 +111,8 @@ class CPU(object):
             if offset >= 0x80:  # Negative
                 offset -= 0x100
             return offset
+        elif addressing_mode == AddressingModes.IMPLIED:
+            return None
 
     def update_status_registers(self, value):
         if value == 0:
@@ -105,6 +124,15 @@ class CPU(object):
             self.negative = 1
         else:
             self.negative = 0
+
+    def branch(self, offset):
+        self.cycles += 1
+        self.check_page(self.program_counter, self.program_counter + offset)
+        self.program_counter += offset
+
+    def push(self, value):
+        self.set_memory(self.stack_pointer, value)
+        self.stack_pointer -= 1
 
     def adc(self, address_mode, operand_address):
         """ Add with Carry """
@@ -144,21 +172,15 @@ class CPU(object):
 
     def bcc(self, address_mode, offset):
         if self.carry == 0:
-            self.cycles += 1
-            self.check_page(self.program_counter, self.program_counter + offset)
-            self.program_counter += offset
+            self.branch(offset)
 
     def bcs(self, address_mode, offset):
         if self.carry == 1:
-            self.cycles += 1
-            self.check_page(self.program_counter, self.program_counter + offset)
-            self.program_counter += offset
+            self.branch(offset)
 
     def beq(self, address_mode, offset):
         if self.zero == 1:
-            self.cycles += 1
-            self.check_page(self.program_counter, self.program_counter + offset)
-            self.program_counter += offset
+            self.branch(offset)
 
     def bit(self, address_mode, operand_address):
         operand = self.get_memory(operand_address)
@@ -177,6 +199,25 @@ class CPU(object):
             self.negative = 1
         else:
             self.negative = 0
+
+    def bmi(self, address_mode, offset):
+        if self.negative == 1:
+            self.branch(offset)
+
+    def bne(self, address_mode, offset):
+        if self.zero == 0:
+            self.branch(offset)
+
+    def bpl(self, address_mode, offset):
+        if self.negative == 0:
+            self.branch(offset)
+
+    def brk(self, address_mode, offset):
+        self.break_command = 1
+        self.push(self.program_counter >> 8)
+        self.push(self.program_counter & 0xFF)
+        self.push(self.status_register)
+        self.program_counter = self.get_memory(0xFFFE) + self.get_memory(0xFFFF) * 0xFF
 
 
 INSTRUCTIONS_MAP = {
@@ -203,7 +244,7 @@ INSTRUCTIONS_MAP = {
     0x06: (CPU.asl, AddressingModes.ZERO_PAGE, 2, 5),
     0x16: (CPU.asl, AddressingModes.ZERO_PAGE_X, 2, 6),
     0x0E: (CPU.asl, AddressingModes.ABSOLUTE, 3, 6),
-    0x1E: (CPU.asl, AddressingModes.ABSOLUTE_X, 3, 7),
+    0x1E: (CPU.asl, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
     # BCC
     0x90: (CPU.bcc, AddressingModes.RELATIVE, 2, 2),
     # BCS
@@ -213,6 +254,15 @@ INSTRUCTIONS_MAP = {
     # BIT
     0x24: (CPU.bit, AddressingModes.ZERO_PAGE, 2, 3),
     0x2C: (CPU.bit, AddressingModes.ABSOLUTE, 3, 4),
+    # BMI
+    0x30: (CPU.bmi, AddressingModes.RELATIVE, 2, 2),
+    # BNE
+    0xD0: (CPU.bne, AddressingModes.RELATIVE, 2, 2),
+    # BPL
+    0x10: (CPU.bpl, AddressingModes.RELATIVE, 2, 2),
+    # BRK
+
+
 
 }
 
