@@ -52,9 +52,10 @@ class CPU(object):
             return
         op_code = self.get_memory(self.program_counter)
         command, addressing_mode, operations, cycles = INSTRUCTIONS_MAP[op_code]
+        self.addressing_mode = addressing_mode
         operand = self.get_operand_address(addressing_mode)
         self.program_counter += operations
-        command(self, addressing_mode, operand)
+        command(self, operand)
         self.cycles += cycles - 1
 
     def get_memory(self, byte_number):
@@ -134,7 +135,7 @@ class CPU(object):
         self.set_memory(self.stack_pointer, value)
         self.stack_pointer -= 1
 
-    def adc(self, address_mode, operand_address):
+    def adc(self, operand_address):
         """ Add with Carry """
         value_to_add = self.get_memory(operand_address)
         self.accumulator = self.accumulator + value_to_add + self.carry
@@ -145,13 +146,13 @@ class CPU(object):
             self.carry = 0
         self.update_status_registers(self.accumulator)
 
-    def and_(self, address_mode, operand_address):
+    def and_(self, operand_address):
         operand = self.get_memory(operand_address)
         self.accumulator &= operand
         self.update_status_registers(self.accumulator)
 
-    def asl(self, address_mode, operand_address):
-        if address_mode == AddressingModes.ACCUMULATOR:
+    def asl(self, operand_address):
+        if self.addressing_mode == AddressingModes.ACCUMULATOR:
             self.accumulator *= 2
             if self.accumulator > 0xFF:
                 self.carry = 1
@@ -170,19 +171,19 @@ class CPU(object):
             self.update_status_registers(value)
             self.set_memory(operand_address, value)
 
-    def bcc(self, address_mode, offset):
+    def bcc(self, offset):
         if self.carry == 0:
             self.branch(offset)
 
-    def bcs(self, address_mode, offset):
+    def bcs(self, offset):
         if self.carry == 1:
             self.branch(offset)
 
-    def beq(self, address_mode, offset):
+    def beq(self, offset):
         if self.zero == 1:
             self.branch(offset)
 
-    def bit(self, address_mode, operand_address):
+    def bit(self, operand_address):
         operand = self.get_memory(operand_address)
         result = self.accumulator & operand
         if result == 0:
@@ -200,24 +201,71 @@ class CPU(object):
         else:
             self.negative = 0
 
-    def bmi(self, address_mode, offset):
+    def bmi(self, offset):
         if self.negative == 1:
             self.branch(offset)
 
-    def bne(self, address_mode, offset):
+    def bne(self, offset):
         if self.zero == 0:
             self.branch(offset)
 
-    def bpl(self, address_mode, offset):
+    def bpl(self, offset):
         if self.negative == 0:
             self.branch(offset)
 
-    def brk(self, address_mode, offset):
+    def brk(self, _implied):
         self.break_command = 1
         self.push(self.program_counter >> 8)
         self.push(self.program_counter & 0xFF)
         self.push(self.status_register)
         self.program_counter = self.get_memory(0xFFFE) + self.get_memory(0xFFFF) * 0xFF
+
+    def bvc(self, offset):
+        if self.overflow == 0:
+            self.branch(offset)
+
+    def bvs(self, offset):
+        if self.overflow == 1:
+            self.branch(offset)
+
+    def clc(self, _implied):
+        self.carry = 0
+
+    def cld(self, _implied):
+        self.decimal_mode = 0
+
+    def cli(self, _implied):
+        self.interrupt_disable = 0
+
+    def clv(self, _implied):
+        self.overflow = 0
+
+    def cmp(self, operand_address):
+        operand = self.get_memory(operand_address)
+        if self.accumulator > operand:
+            self.carry = 1
+        else:
+            self.carry = 0
+        result = self.accumulator - operand
+        self.update_status_registers(result)
+
+    def cpx(self, operand_address):
+        operand = self.get_memory(operand_address)
+        if self.x > operand:
+            self.carry = 1
+        else:
+            self.carry = 0
+        result = self.x - operand
+        self.update_status_registers(result)
+
+    def cpy(self, operand_address):
+        operand = self.get_memory(operand_address)
+        if self.y > operand:
+            self.carry = 1
+        else:
+            self.carry = 0
+        result = self.y - operand
+        self.update_status_registers(result)
 
 
 INSTRUCTIONS_MAP = {
@@ -261,8 +309,33 @@ INSTRUCTIONS_MAP = {
     # BPL
     0x10: (CPU.bpl, AddressingModes.RELATIVE, 2, 2),
     # BRK
-
-
+    0x00: (CPU.brk, AddressingModes.IMPLIED, 1, 7),
+    # BVC
+    0x50: (CPU.bvc, AddressingModes.RELATIVE, 2, 2),
+    # BVS
+    0x70: (CPU.bvs, AddressingModes.RELATIVE, 2, 2),
+    # Clear functions
+    0x18: (CPU.clc, AddressingModes.IMPLIED, 1, 2),
+    0xD8: (CPU.cld, AddressingModes.IMPLIED, 1, 2),
+    0x58: (CPU.cli, AddressingModes.IMPLIED, 1, 2),
+    0xB8: (CPU.clv, AddressingModes.IMPLIED, 1, 2),
+    # CMP
+    0xC9: (CPU.cmp, AddressingModes.IMMEDIATE, 2, 2),
+    0xC5: (CPU.cmp, AddressingModes.ZERO_PAGE, 2, 3),
+    0xD5: (CPU.cmp, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0xCD: (CPU.cmp, AddressingModes.ABSOLUTE, 3, 4),
+    0xDD: (CPU.cmp, AddressingModes.ABSOLUTE_X, 3, 4),
+    0xD9: (CPU.cmp, AddressingModes.ABSOLUTE_Y, 3, 4),
+    0xC1: (CPU.cmp, AddressingModes.INDIRECT_X, 2, 6),
+    0xD1: (CPU.cmp, AddressingModes.INDIRECT_Y, 2, 5),
+    # CPX
+    0xE0: (CPU.cpx, AddressingModes.IMMEDIATE, 2, 2),
+    0xE4: (CPU.cpx, AddressingModes.ZERO_PAGE, 2, 3),
+    0xEC: (CPU.cpx, AddressingModes.ABSOLUTE, 3, 4),
+    # CPY
+    0xC0: (CPU.cpy, AddressingModes.IMMEDIATE, 2, 2),
+    0xC4: (CPU.cpy, AddressingModes.ZERO_PAGE, 2, 3),
+    0xCC: (CPU.cpy, AddressingModes.ABSOLUTE, 3, 4)
 
 }
 
