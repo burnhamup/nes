@@ -30,6 +30,7 @@ class CPU(object):
         self.negative = 0
         self.decimal_mode = 0
         self.break_command = 0
+        self.addressing_mode = AddressingModes.IMPLIED
         # Memory
         self.memory = [0] * 0xFFFF
 
@@ -267,6 +268,64 @@ class CPU(object):
         result = self.y - operand
         self.update_status_registers(result)
 
+    def dec(self, operand_address):
+        operand = self.get_memory(operand_address)
+        result = (operand - 1) % 0xFF
+        self.set_memory(operand_address, result)
+        self.update_status_registers(result)
+
+    def dex(self, _implied):
+        self.x = (self.x - 1) % 0xFF
+        self.update_status_registers(self.x)
+
+    def dey(self, _implied):
+        self.y = (self.y - 1) % 0xFF
+        self.update_status_registers(self.y)
+
+    def eor(self, operand_address):
+        operand = self.get_memory(operand_address)
+        self.accumulator ^= operand
+        self.update_status_registers(self.accumulator)
+
+    def inc(self, operand_address):
+        operand = self.get_memory(operand_address)
+        result = (operand + 1) % 0xFF
+        self.set_memory(operand_address, result)
+        self.update_status_registers(result)
+
+    def inx(self, _implied):
+        self.x = (self.x + 1) % 0xFF
+        self.update_status_registers(self.x)
+
+    def iny(self, _implied):
+        self.y = (self.y + 1) % 0xFF
+        self.update_status_registers(self.y)
+
+    def jmp(self, operand_address):
+        operand = self.get_memory(operand_address)
+        # TODO implement the bug with indirect page boundaries
+        self.program_counter = operand
+
+    def jsr(self, operand_address):
+        # TODO verify that I'm pushing the correct value of program counter
+        self.push(self.program_counter - 1)
+        self.program_counter = self.get_memory(operand_address)
+
+    def lda(self, operand_address):
+        self.accumulator = self.get_memory(operand_address)
+        self.update_status_registers(self.accumulator)
+
+    def ldx(self, operand_address):
+        self.x = self.get_memory(operand_address)
+        self.update_status_registers(self.x)
+
+    def ldy(self, operand_address):
+        self.y = self.get_memory(operand_address)
+        self.update_status_registers(self.y)
+
+
+
+
 
 INSTRUCTIONS_MAP = {
     # ADC
@@ -335,7 +394,17 @@ INSTRUCTIONS_MAP = {
     # CPY
     0xC0: (CPU.cpy, AddressingModes.IMMEDIATE, 2, 2),
     0xC4: (CPU.cpy, AddressingModes.ZERO_PAGE, 2, 3),
-    0xCC: (CPU.cpy, AddressingModes.ABSOLUTE, 3, 4)
+    0xCC: (CPU.cpy, AddressingModes.ABSOLUTE, 3, 4),
+    # DEC
+    0xC6: (CPU.dec, AddressingModes.ZERO_PAGE, 2, 5),
+    0xD6: (CPU.dec, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0xCE: (CPU.dec, AddressingModes.ABSOLUTE, 3, 6),
+    0xDE: (CPU.dec, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # DEX
+    0xCA: (CPU.dex, AddressingModes.IMPLIED, 1, 2),
+    # DEY
+    0x88: (CPU.dey, AddressingModes.IMPLIED, 1, 2),
+
 
 }
 
