@@ -12,6 +12,7 @@ class AddressingModes(object):
     ACCUMULATOR = 10
     RELATIVE = 11
     IMPLIED = 12
+    INDIRECT = 13
 
 
 class CPU(object):
@@ -113,6 +114,16 @@ class CPU(object):
             if offset >= 0x80:  # Negative
                 offset -= 0x100
             return offset
+        elif addressing_mode == AddressingModes.INDIRECT:
+            address = data * 0xFF + data2
+            low_byte = self.get_memory(address)
+            if data & 0xFF == 0xFF:
+                high_address = address | 0xFF00
+            else:
+                high_address = address + 1
+            high_byte = self.get_memory(high_address) * 0xFF
+            return low_byte + high_byte
+
         elif addressing_mode == AddressingModes.IMPLIED:
             return None
 
@@ -303,7 +314,6 @@ class CPU(object):
 
     def jmp(self, operand_address):
         operand = self.get_memory(operand_address)
-        # TODO implement the bug with indirect page boundaries
         self.program_counter = operand
 
     def jsr(self, operand_address):
@@ -404,6 +414,136 @@ INSTRUCTIONS_MAP = {
     0xCA: (CPU.dex, AddressingModes.IMPLIED, 1, 2),
     # DEY
     0x88: (CPU.dey, AddressingModes.IMPLIED, 1, 2),
+    # EOR
+    0x49: (CPU.eor, AddressingModes.IMMEDIATE, 2, 2),
+    0x45: (CPU.eor, AddressingModes.ZERO_PAGE, 2, 3),
+    0x55: (CPU.eor, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0x4D: (CPU.eor, AddressingModes.ABSOLUTE, 3, 4),
+    0x5D: (CPU.eor, AddressingModes.ABSOLUTE_X, 3, 4),
+    0x59: (CPU.eor, AddressingModes.ABSOLUTE_Y, 3, 4),
+    0x41: (CPU.eor, AddressingModes.INDIRECT_X, 2, 6),
+    0x51: (CPU.eor, AddressingModes.INDIRECT_Y, 2, 5),
+    # INC
+    0xE6: (CPU.inc, AddressingModes.ZERO_PAGE, 2, 5),
+    0xF6: (CPU.inc, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0xEE: (CPU.inc, AddressingModes.ABSOLUTE, 3, 6),
+    0xFE: (CPU.inc, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # INX
+    0xE8: (CPU.inx, AddressingModes.IMPLIED, 1, 2),
+    # INY
+    0xC8: (CPU.iny, AddressingModes.IMPLIED, 1, 2),
+    # JMP
+    0x4C: (CPU.jmp, AddressingModes.ABSOLUTE, 3, 3),
+    0x6C: (CPU.jmp, AddressingModes.INDIRECT, 3, 5),
+    # JSR
+    0x20: (CPU.jsr, AddressingModes.ABSOLUTE, 3, 6),
+    # LDA
+    0xA9: (CPU.lda, AddressingModes.IMMEDIATE, 2, 2),
+    0xA5: (CPU.lda, AddressingModes.ZERO_PAGE, 2, 3),
+    0xB5: (CPU.lda, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0xAD: (CPU.lda, AddressingModes.ABSOLUTE, 3, 4),
+    0xBD: (CPU.lda, AddressingModes.ABSOLUTE_X, 3, 4),
+    0xB9: (CPU.lda, AddressingModes.ABSOLUTE_Y, 3, 4),
+    0xA1: (CPU.lda, AddressingModes.INDIRECT_X, 2, 6),
+    0xB1: (CPU.lda, AddressingModes.INDIRECT_Y, 2, 5),
+    # LDX
+    0xA2: (CPU.ldx, AddressingModes.IMMEDIATE, 2, 2),
+    0xA6: (CPU.ldx, AddressingModes.ZERO_PAGE, 2, 2,),
+    0xB6: (CPU.ldx, AddressingModes.ZERO_PAGE_Y, 2, 3),
+    0xAE: (CPU.ldx, AddressingModes.ABSOLUTE, 3, 4),
+    0xBE: (CPU.ldx, AddressingModes.ABSOLUTE_Y, 3, 4),
+    # LDY
+    0xA0: (CPU.ldy, AddressingModes.IMMEDIATE, 2, 2),
+    0xA4: (CPU.ldy, AddressingModes.ZERO_PAGE, 2, 2,),
+    0xB4: (CPU.ldy, AddressingModes.ZERO_PAGE_X, 2, 3),
+    0xAC: (CPU.ldy, AddressingModes.ABSOLUTE, 3, 4),
+    0xBC: (CPU.ldy, AddressingModes.ABSOLUTE_X, 3, 4),
+    # LSR
+    0x4A: (CPU.lsr, AddressingModes.ACCUMULATOR, 1, 2),
+    0x46: (CPU.lsr, AddressingModes.ZERO_PAGE, 2, 5),
+    0x56: (CPU.lsr, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0x4E: (CPU.lsr, AddressingModes.ABSOLUTE, 3, 6),
+    0x5E: (CPU.lsr, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # NOP
+    0xEA: (CPU.nop, AddressingModes.IMPLIED, 1, 2),
+    # ORA
+    0x09: (CPU.ora, AddressingModes.IMMEDIATE, 2, 2),
+    0x05: (CPU.ora, AddressingModes.ZERO_PAGE, 2, 3),
+    0x15: (CPU.ora, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0x0D: (CPU.ora, AddressingModes.ABSOLUTE, 3, 4),
+    0x1D: (CPU.ora, AddressingModes.ABSOLUTE_X, 3, 4),
+    0x19: (CPU.ora, AddressingModes.ABSOLUTE_Y, 3, 4),
+    0x01: (CPU.ora, AddressingModes.INDIRECT_X, 2, 6),
+    0x11: (CPU.ora, AddressingModes.INDIRECT_Y, 2, 5),
+    # PHA
+    0x48: (CPU.pha, AddressingModes.IMPLIED, 1, 3),
+    # PHP
+    0x08: (CPU.php, AddressingModes.IMPLIED, 1, 3),
+    # PLA
+    0x68: (CPU.pla, AddressingModes.IMPLIED, 1, 4),
+    # PLP
+    0x28: (CPU.plp, AddressingModes.IMPLIED, 1, 4),
+    # ROL
+    0x2A: (CPU.rol, AddressingModes.ACCUMULATOR, 1, 2),
+    0x26: (CPU.rol, AddressingModes.ZERO_PAGE, 2, 5),
+    0x36: (CPU.rol, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0x2E: (CPU.rol, AddressingModes.ABSOLUTE, 3, 6),
+    0x3E: (CPU.rol, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # ROL
+    0x6A: (CPU.ror, AddressingModes.ACCUMULATOR, 1, 2),
+    0x66: (CPU.ror, AddressingModes.ZERO_PAGE, 2, 5),
+    0x76: (CPU.ror, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0x6E: (CPU.ror, AddressingModes.ABSOLUTE, 3, 6),
+    0x7E: (CPU.ror, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # RTI
+    0x40: (CPU.rti, AddressingModes.IMPLIED, 1, 6),
+    # RTS
+    0x60: (CPU.rts, AddressingModes.IMPLIED, 1, 6),
+    # SBC
+    0xE9: (CPU.sbc, AddressingModes.IMMEDIATE, 2, 2),
+    0xE5: (CPU.sbc, AddressingModes.ZERO_PAGE, 2, 3),
+    0xF5: (CPU.sbc, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0xED: (CPU.sbc, AddressingModes.ABSOLUTE, 3, 4),
+    0xFD: (CPU.sbc, AddressingModes.ABSOLUTE_X, 3, 4),
+    0xF9: (CPU.sbc, AddressingModes.ABSOLUTE_Y, 3, 4),
+    0xE1: (CPU.sbc, AddressingModes.INDIRECT_X, 2, 6),
+    0xF1: (CPU.sbc, AddressingModes.INDIRECT_Y, 2, 5),
+    # SEC
+    0x38: (CPU.sec, AddressingModes.IMPLIED, 1, 2),
+    # SED
+    0xF8: (CPU.sed, AddressingModes.IMPLIED, 1, 2),
+    # SEI
+    0x78: (CPU.sei, AddressingModes.IMPLIED, 1, 2),
+    # STA
+    0x85: (CPU.sta, AddressingModes.ZERO_PAGE, 2, 3),
+    0x95: (CPU.sta, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0x8D: (CPU.sta, AddressingModes.ABSOLUTE, 3, 4),
+    0x9D: (CPU.sta, AddressingModes.ABSOLUTE_X, 3, 5),
+    0x99: (CPU.sta, AddressingModes.ABSOLUTE_Y, 3, 5),
+    0x81: (CPU.sta, AddressingModes.INDIRECT_X, 2, 6),
+    0x91: (CPU.sta, AddressingModes.INDIRECT_Y, 2, 5),
+    # STX
+    0x86: (CPU.stx, AddressingModes.ZERO_PAGE, 2, 3),
+    0x96: (CPU.stx, AddressingModes.ZERO_PAGE_Y, 2, 4),
+    0x8E: (CPU.stx, AddressingModes.ABSOLUTE, 3, 4),
+    # STX
+    0x84: (CPU.sty, AddressingModes.ZERO_PAGE, 2, 3),
+    0x94: (CPU.sty, AddressingModes.ZERO_PAGE_Y, 2, 4),
+    0x8C: (CPU.sty, AddressingModes.ABSOLUTE, 3, 4),
+    # TAX
+    0xAA: (CPU.tax, AddressingModes.IMPLIED, 1, 2),
+    # TAY
+    0xA8: (CPU.tay, AddressingModes.IMPLIED, 1, 2),
+    # TSX
+    0xBA: (CPU.tsx, AddressingModes.IMPLIED, 1, 2),
+    # TXA
+    0x8A: (CPU.txa, AddressingModes.IMPLIED, 1, 2),
+    # TXS
+    0x9A: (CPU.txs, AddressingModes.IMPLIED, 1, 2),
+    # TYA
+    0x98: (CPU.tya, AddressingModes.IMPLIED, 1, 2),
+
+
 
 
 }
