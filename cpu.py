@@ -76,7 +76,7 @@ class CPU(object):
         operand = self.get_operand_address(addressing_mode)
         data1 = "{:02X}".format(self.get_memory(self.program_counter + 1)) if number_of_bytes > 1 else "  "
         data2 = "{:02X}".format(self.get_memory(self.program_counter + 2)) if number_of_bytes > 2 else "  "
-        return "{:X} {:X} {} {} {} {:04X} \t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{:3d} SL:{:3d}".format(
+        args = (
             self.program_counter,
             op_code,
             data1,
@@ -91,6 +91,7 @@ class CPU(object):
             (self.total_cycles * 3) % 341,
             (((self.total_cycles * 3) / 341) + 242) % 261 - 1
         )
+        return args
 
     def get_memory(self, byte_number):
         return self.memory.get_memory(byte_number)
