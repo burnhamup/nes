@@ -16,7 +16,7 @@ class AddressingModes(object):
 
 
 class CPU(object):
-    def __init__(self):
+    def __init__(self, memory):
         # Registers
         self.accumulator = 0
         self.x = 0
@@ -33,7 +33,7 @@ class CPU(object):
         self.break_command = 0
         self.addressing_mode = AddressingModes.IMPLIED
         # Memory
-        self.memory = [0] * 0xFFFF
+        self.memory = memory
 
         self.cycles = 0
 
@@ -60,11 +60,43 @@ class CPU(object):
         command(self, operand)
         self.cycles += cycles - 1
 
+    def tick_debug(self):
+        self.total_cycles = 0
+        while True:
+            if self.cycles > 0:
+                self.tick()
+            else:
+                yield self.debug_message()
+                self.tick()
+                self.total_cycles += self.cycles + 1
+
+    def debug_message(self):
+        op_code = self.get_memory(self.program_counter)
+        command, addressing_mode, number_of_bytes, cycles = INSTRUCTIONS_MAP[op_code]
+        operand = self.get_operand_address(addressing_mode)
+        data1 = "{:X}".format(self.get_memory(self.program_counter + 1)) if number_of_bytes > 1 else "  "
+        data2 = "{:X}".format(self.get_memory(self.program_counter + 2)) if number_of_bytes > 2 else "  "
+        return "{:X} {:X} {} {} {} {:X} A:{:X} X:{:X} Y:{:X} P:{:X} SP:{:X} CYC:{} SL:{:X}".format(
+            self.program_counter,
+            op_code,
+            data1,
+            data2,
+            command.__name__,
+            operand,
+            self.accumulator,
+            self.x,
+            self.y,
+            self.status_register,
+            self.stack_pointer,
+            self.total_cycles * 3,
+            0
+        )
+
     def get_memory(self, byte_number):
-        return self.memory[byte_number]
+        return self.memory.get_memory(byte_number)
 
     def set_memory(self, byte_number, value):
-        self.memory[byte_number] = value
+        self.memory.set_memory(byte_number, value)
 
     def check_page(self, address1, address2):
         # If the two address refer to different pages add 1 to the cycle
@@ -83,18 +115,18 @@ class CPU(object):
         elif addressing_mode == AddressingModes.ZERO_PAGE_Y:
             return (data + self.x) % 0xFF
         elif addressing_mode == AddressingModes.ABSOLUTE:
-            return data * 0xFF + data2
+            return data + data2 * 0x100
         elif addressing_mode == AddressingModes.ABSOLUTE_X:
             address = data * 0xFF + data2
             result = address + self.x
             self.check_page(address, result)
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_X_NO_PAGE:
-            address = data * 0xFF + data2
+            address = data2 * 0x100 + data
             result = address + self.x
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_Y:
-            address = data * 0xFF + data2
+            address = data2 * 0x100 + data
             result = address + self.y
             self.check_page(address, result)
             return result
@@ -317,14 +349,13 @@ class CPU(object):
         self.update_status_registers(self.y)
 
     def jmp(self, operand_address):
-        operand = self.get_memory(operand_address)
-        self.program_counter = operand
+        self.program_counter = operand_address
 
     def jsr(self, operand_address):
         value_to_push = self.program_counter - 1
         self.push(value_to_push >> 8)
         self.push(value_to_push & 0xFF)
-        self.program_counter = self.get_memory(operand_address)
+        self.program_counter = operand_address
 
     def lda(self, operand_address):
         self.accumulator = self.get_memory(operand_address)
@@ -673,23 +704,4 @@ INSTRUCTIONS_MAP = {
     0x9A: (CPU.txs, AddressingModes.IMPLIED, 1, 2),
     # TYA
     0x98: (CPU.tya, AddressingModes.IMPLIED, 1, 2),
-
-
-
-
 }
-
-if __name__ == '__main__':
-    cpu = CPU()
-    # ADD 0x1F
-    cpu.memory[0x34] = 0x69
-    cpu.memory[0x35] = 0x1F
-    # AND 0xF1
-    cpu.memory[0x36] = 0x29
-    cpu.memory[0x37] = 0xF1
-    cpu.tick()
-    cpu.tick()
-    assert cpu.accumulator == 0x1F
-    cpu.tick()
-    cpu.tick()
-    assert cpu.accumulator == 0x11
