@@ -74,22 +74,22 @@ class CPU(object):
         op_code = self.get_memory(self.program_counter)
         command, addressing_mode, number_of_bytes, cycles = INSTRUCTIONS_MAP[op_code]
         operand = self.get_operand_address(addressing_mode)
-        data1 = "{:X}".format(self.get_memory(self.program_counter + 1)) if number_of_bytes > 1 else "  "
-        data2 = "{:X}".format(self.get_memory(self.program_counter + 2)) if number_of_bytes > 2 else "  "
-        return "{:X} {:X} {} {} {} {:X} A:{:X} X:{:X} Y:{:X} P:{:X} SP:{:X} CYC:{} SL:{:X}".format(
+        data1 = "{:02X}".format(self.get_memory(self.program_counter + 1)) if number_of_bytes > 1 else "  "
+        data2 = "{:02X}".format(self.get_memory(self.program_counter + 2)) if number_of_bytes > 2 else "  "
+        return "{:X} {:X} {} {} {} {:04X} \t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{:3d} SL:{:3d}".format(
             self.program_counter,
             op_code,
             data1,
             data2,
-            command.__name__,
+            command.__name__.upper(),
             operand,
             self.accumulator,
             self.x,
             self.y,
             self.status_register,
             self.stack_pointer,
-            self.total_cycles * 3,
-            0
+            (self.total_cycles * 3) % 341,
+            (((self.total_cycles * 3) / 341) + 242) % 261 - 1
         )
 
     def get_memory(self, byte_number):
@@ -165,7 +165,7 @@ class CPU(object):
         else:
             self.zero = 0
 
-        if value > 0x80:
+        if value >= 0x80:
             self.negative = 1
         else:
             self.negative = 0
