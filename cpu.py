@@ -147,6 +147,10 @@ class CPU(object):
         self.set_memory(self.stack_pointer, value)
         self.stack_pointer -= 1
 
+    def pop(self):
+        self.stack_pointer += 1
+        return self.get_memory(self.stack_pointer)
+
     def adc(self, operand_address):
         """ Add with Carry """
         value_to_add = self.get_memory(operand_address)
@@ -317,8 +321,9 @@ class CPU(object):
         self.program_counter = operand
 
     def jsr(self, operand_address):
-        # TODO verify that I'm pushing the correct value of program counter
-        self.push(self.program_counter - 1)
+        value_to_push = self.program_counter - 1
+        self.push(value_to_push >> 8)
+        self.push(value_to_push & 0xFF)
         self.program_counter = self.get_memory(operand_address)
 
     def lda(self, operand_address):
@@ -333,8 +338,134 @@ class CPU(object):
         self.y = self.get_memory(operand_address)
         self.update_status_registers(self.y)
 
+    def lsr(self, operand_address):
+        if self.addressing_mode == AddressingModes.ACCUMULATOR:
+            original_value = self.accumulator
+            self.accumulator = (self.accumulator >> 1)
+            self.update_status_registers(self.accumulator)
+        else:
+            original_value = self.get_memory(operand_address)
+            new_value = (original_value >> 1)
+            self.update_status_registers(new_value)
+            self.set_memory(operand_address, new_value)
+        self.carry = original_value & 0x01
 
+    def nop(self, _implied):
+        pass
 
+    def ora(self, operand_address):
+        operand = self.get_memory(operand_address)
+        self.accumulator |= operand
+        self.update_status_registers(self.accumulator)
+
+    def pha(self, _implied):
+        self.push(self.accumulator)
+
+    def php(self, _implied):
+        self.push(self.status_register)
+
+    def pla(self, _implied):
+        self.accumulator = self.pop()
+        self.update_status_registers(self.accumulator)
+
+    def plp(self, _implied):
+        status_registers = self.pop()
+        if status_registers & 0x1:
+            self.carry = 1
+        else:
+            self.carry = 0
+        self.carry = 1 if status_registers & 0x1 else 0
+        self.zero = 1 if status_registers & 0x2 else 0
+        self.interrupt_disable = 1 if status_registers & 0x4 else 0
+        self.decimal_mode = 1 if status_registers & 0x8 else 0
+        self.overflow = 1 if status_registers & 0x40 else 0
+        self.negative = 1 if status_registers & 0x80 else 0
+
+    def rol(self, operand_address):
+        if self.addressing_mode == AddressingModes.ACCUMULATOR:
+            original_value = self.accumulator
+            self.accumulator = (self.accumulator << 1) + self.carry
+            self.update_status_registers(self.accumulator)
+        else:
+            original_value = self.get_memory(operand_address)
+            new_value = (original_value << 1) + self.carry
+            self.update_status_registers(new_value)
+            self.set_memory(operand_address, new_value)
+        self.carry = original_value & 0x80
+
+    def ror(self, operand_address):
+        if self.addressing_mode == AddressingModes.ACCUMULATOR:
+            original_value = self.accumulator
+            self.accumulator = (self.accumulator >> 1) + self.carry * 0x80
+            self.update_status_registers(self.accumulator)
+        else:
+            original_value = self.get_memory(operand_address)
+            new_value = (original_value >> 1) + self.carry * 0x80
+            self.update_status_registers(new_value)
+            self.set_memory(operand_address, new_value)
+        self.carry = original_value & 0x01
+
+    def rti(self, _implied):
+        self.plp(_implied)
+        self.program_counter = self.pop() + self.pop() * 0xFF
+
+    def rts(self, _implied):
+        self.program_counter = self.pop() + self.pop() * 0xFF + 1
+
+    def sbc(self, operand_address):
+        operand = self.get_memory(operand_address)
+        result = self.accumulator - operand - (1 - self.carry)
+        if result >= 0:
+            self.carry = 1
+        else:
+            self.carry = 0
+        self.accumulator = result % 0xFF
+        if result != self.accumulator:
+            self.overflow = 1
+        else:
+            self.overflow = 0
+        self.update_status_registers(self.accumulator)
+
+    def sec(self, _implied):
+        self.carry = 1
+
+    def sed(self, _implied):
+        self.decimal_mode = 1
+
+    def sei(self, _implied):
+        self.interrupt_disable = 1
+
+    def sta(self, operand_address):
+        self.set_memory(operand_address, self.accumulator)
+
+    def stx(self, operand_address):
+        self.set_memory(operand_address, self.x)
+
+    def sty(self, operand_address):
+        self.set_memory(operand_address, self.y)
+
+    def tax(self, _implied):
+        self.x = self.accumulator
+        self.update_status_registers(self.x)
+
+    def tay(self, _implied):
+        self.y = self.accumulator
+        self.update_status_registers(self.y)
+
+    def tsx(self, _implied):
+        self.x = self.stack_pointer
+        self.update_status_registers(self.x)
+
+    def txa(self, _implied):
+        self.accumulator = self.x
+        self.update_status_registers(self.accumulator)
+
+    def txs(self, _implied):
+        self.stack_pointer = self.x
+
+    def tya(self, _implied):
+        self.accumulator = self.y
+        self.update_status_registers(self.accumulator)
 
 
 INSTRUCTIONS_MAP = {
