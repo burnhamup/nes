@@ -81,7 +81,7 @@ class CPU(object):
             op_code,
             data1,
             data2,
-            command.__name__.upper(),
+            command.__name__.upper() if command.__name__ != 'and_' else 'AND',
             operand,
             self.accumulator,
             self.x,
@@ -112,13 +112,13 @@ class CPU(object):
         elif addressing_mode == AddressingModes.ZERO_PAGE:
             return data
         elif addressing_mode == AddressingModes.ZERO_PAGE_X:
-            return (data + self.x) % 0xFF
+            return (data + self.x) % 0x100
         elif addressing_mode == AddressingModes.ZERO_PAGE_Y:
-            return (data + self.x) % 0xFF
+            return (data + self.x) % 0x100
         elif addressing_mode == AddressingModes.ABSOLUTE:
             return data + data2 * 0x100
         elif addressing_mode == AddressingModes.ABSOLUTE_X:
-            address = data * 0xFF + data2
+            address = data * 0x100 + data2
             result = address + self.x
             self.check_page(address, result)
             return result
@@ -133,11 +133,11 @@ class CPU(object):
             return result
         elif addressing_mode == AddressingModes.INDIRECT_X:
             low_byte = self.get_memory((data + self.x) % 0xFF)
-            high_byte = self.get_memory((data + self.x + 1) % 0xFF) * 0xFF
+            high_byte = self.get_memory((data + self.x + 1) % 0xFF) * 0x100
             return low_byte + high_byte
         elif addressing_mode == AddressingModes.INDIRECT_Y:
             low_byte = self.get_memory(data)
-            high_byte = self.get_memory((data + 1) % 0xFF) * 0xFF
+            high_byte = self.get_memory((data + 1) % 0xFF) * 0x100
             address = low_byte + high_byte
             result = address + self.y
             self.check_page(address, result)
@@ -148,13 +148,13 @@ class CPU(object):
                 offset -= 0x100
             return offset
         elif addressing_mode == AddressingModes.INDIRECT:
-            address = data * 0xFF + data2
+            address = data * 0x100 + data2
             low_byte = self.get_memory(address)
             if data & 0xFF == 0xFF:
                 high_address = address | 0xFF00
             else:
                 high_address = address + 1
-            high_byte = self.get_memory(high_address) * 0xFF
+            high_byte = self.get_memory(high_address) * 0x100
             return low_byte + high_byte
 
         elif addressing_mode == AddressingModes.IMPLIED:
@@ -187,12 +187,16 @@ class CPU(object):
     def adc(self, operand_address):
         """ Add with Carry """
         value_to_add = self.get_memory(operand_address)
-        self.accumulator = self.accumulator + value_to_add + self.carry
-        if self.accumulator > 0xFF:
+        result = self.accumulator + value_to_add + self.carry
+        if result > 0xFF:
             self.carry = 1
-            self.accumulator %= 0xFF
         else:
             self.carry = 0
+        self.accumulator = result % 0x100
+        if result != self.accumulator:
+            self.overflow = 1
+        else:
+            self.overflow = 0
         self.update_status_registers(self.accumulator)
 
     def and_(self, operand_address):
@@ -205,7 +209,7 @@ class CPU(object):
             self.accumulator *= 2
             if self.accumulator > 0xFF:
                 self.carry = 1
-                self.accumulator %= 0xFF
+                self.accumulator %= 0x100
             else:
                 self.carry = 0
             self.update_status_registers(self.accumulator)
@@ -214,7 +218,7 @@ class CPU(object):
             value *= 2
             if value > 0xFF:
                 self.carry = 1
-                value %= 0xFF
+                value %= 0x100
             else:
                 self.carry = 0
             self.update_status_registers(value)
@@ -266,8 +270,8 @@ class CPU(object):
         self.break_command = 1
         self.push(self.program_counter >> 8)
         self.push(self.program_counter & 0xFF)
-        self.push(self.status_register)
-        self.program_counter = self.get_memory(0xFFFE) + self.get_memory(0xFFFF) * 0xFF
+        self.push(self.status_register | 0x10)
+        self.program_counter = self.get_memory(0xFFFE) + self.get_memory(0xFFFF) * 0x100
 
     def bvc(self, offset):
         if self.overflow == 0:
@@ -291,7 +295,7 @@ class CPU(object):
 
     def cmp(self, operand_address):
         operand = self.get_memory(operand_address)
-        if self.accumulator > operand:
+        if self.accumulator >= operand:
             self.carry = 1
         else:
             self.carry = 0
@@ -318,16 +322,16 @@ class CPU(object):
 
     def dec(self, operand_address):
         operand = self.get_memory(operand_address)
-        result = (operand - 1) % 0xFF
+        result = (operand - 1) % 0x100
         self.set_memory(operand_address, result)
         self.update_status_registers(result)
 
     def dex(self, _implied):
-        self.x = (self.x - 1) % 0xFF
+        self.x = (self.x - 1) % 0x100
         self.update_status_registers(self.x)
 
     def dey(self, _implied):
-        self.y = (self.y - 1) % 0xFF
+        self.y = (self.y - 1) % 0x100
         self.update_status_registers(self.y)
 
     def eor(self, operand_address):
@@ -337,16 +341,16 @@ class CPU(object):
 
     def inc(self, operand_address):
         operand = self.get_memory(operand_address)
-        result = (operand + 1) % 0xFF
+        result = (operand + 1) % 0x100
         self.set_memory(operand_address, result)
         self.update_status_registers(result)
 
     def inx(self, _implied):
-        self.x = (self.x + 1) % 0xFF
+        self.x = (self.x + 1) % 0x100
         self.update_status_registers(self.x)
 
     def iny(self, _implied):
-        self.y = (self.y + 1) % 0xFF
+        self.y = (self.y + 1) % 0x100
         self.update_status_registers(self.y)
 
     def jmp(self, operand_address):
@@ -394,7 +398,7 @@ class CPU(object):
         self.push(self.accumulator)
 
     def php(self, _implied):
-        self.push(self.status_register)
+        self.push(self.status_register | 0x10)
 
     def pla(self, _implied):
         self.accumulator = self.pop()
@@ -439,10 +443,10 @@ class CPU(object):
 
     def rti(self, _implied):
         self.plp(_implied)
-        self.program_counter = self.pop() + self.pop() * 0xFF
+        self.program_counter = self.pop() + self.pop() * 0x100
 
     def rts(self, _implied):
-        self.program_counter = self.pop() + self.pop() * 0xFF + 1
+        self.program_counter = self.pop() + self.pop() * 0x100 + 1
 
     def sbc(self, operand_address):
         operand = self.get_memory(operand_address)
@@ -451,7 +455,7 @@ class CPU(object):
             self.carry = 1
         else:
             self.carry = 0
-        self.accumulator = result % 0xFF
+        self.accumulator = result % 0x100
         if result != self.accumulator:
             self.overflow = 1
         else:
