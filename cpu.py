@@ -308,7 +308,7 @@ class CPU(object):
 
     def cpx(self, operand_address):
         operand = self.get_memory(operand_address)
-        if self.x > operand:
+        if self.x >= operand:
             self.carry = 1
         else:
             self.carry = 0
@@ -317,7 +317,7 @@ class CPU(object):
 
     def cpy(self, operand_address):
         operand = self.get_memory(operand_address)
-        if self.y > operand:
+        if self.y >= operand:
             self.carry = 1
         else:
             self.carry = 0
