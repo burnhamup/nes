@@ -459,10 +459,10 @@ class CPU(object):
             self.carry = 1
         else:
             self.carry = 0
-        if (self.accumulator ^ result) & (operand ^ result) & 0x80:
-            self.overflow = 1
-        else:
+        if (self.accumulator ^ result) | (operand ^ result) & 0x80:
             self.overflow = 0
+        else:
+            self.overflow = 1
         self.accumulator = result % 0x100
 
         self.update_status_registers(self.accumulator)
