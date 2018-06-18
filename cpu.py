@@ -166,7 +166,7 @@ class CPU(object):
         else:
             self.zero = 0
 
-        if value >= 0x80:
+        if value >= 0x80 or value < 0:
             self.negative = 1
         else:
             self.negative = 0
