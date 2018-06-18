@@ -192,11 +192,15 @@ class CPU(object):
             self.carry = 1
         else:
             self.carry = 0
-        self.accumulator = result % 0x100
-        if result != self.accumulator:
+
+        if (self.accumulator ^ result) & (value_to_add ^ result) & 0x80:
             self.overflow = 1
         else:
             self.overflow = 0
+
+        self.accumulator = result % 0x100
+
+
         self.update_status_registers(self.accumulator)
 
     def and_(self, operand_address):
@@ -455,11 +459,12 @@ class CPU(object):
             self.carry = 1
         else:
             self.carry = 0
-        self.accumulator = result % 0x100
-        if result != self.accumulator:
+        if (self.accumulator ^ result) & (operand ^ result) & 0x80:
             self.overflow = 1
         else:
             self.overflow = 0
+        self.accumulator = result % 0x100
+
         self.update_status_registers(self.accumulator)
 
     def sec(self, _implied):
