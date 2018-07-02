@@ -459,12 +459,14 @@ class CPU(object):
             self.carry = 1
         else:
             self.carry = 0
-        if (self.accumulator ^ result) | (operand ^ result) & 0x80:
-            self.overflow = 0
-        else:
-            self.overflow = 1
-        self.accumulator = result % 0x100
 
+        self.overflow = 0
+        modded_result = result % 0x100
+        if (self.accumulator ^ operand) & 0x80:  # Signs are different
+            if (self.accumulator ^ modded_result) & 0x80:
+                self.overflow = 1
+
+        self.accumulator = modded_result
         self.update_status_registers(self.accumulator)
 
     def sec(self, _implied):
