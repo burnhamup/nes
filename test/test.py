@@ -36,8 +36,5 @@ def main():
             assert debug_args[10] == expected_stack_pointer
             assert debug_args[11] == expected_cycles
 
-
-
-
 if __name__ == '__main__':
     main()

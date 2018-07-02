@@ -82,14 +82,14 @@ class CPU(object):
             data1,
             data2,
             command.__name__.upper() if command.__name__ != 'and_' else 'AND',
-            operand,
+            operand or 0,
             self.accumulator,
             self.x,
             self.y,
             self.status_register,
             self.stack_pointer,
             (self.total_cycles * 3) % 341,
-            (((self.total_cycles * 3) / 341) + 242) % 261 - 1
+            (((self.total_cycles * 3) / 341) + 242) % 262 - 1
         )
         return args
 
@@ -177,12 +177,12 @@ class CPU(object):
         self.program_counter += offset
 
     def push(self, value):
-        self.set_memory(self.stack_pointer, value)
+        self.set_memory(self.stack_pointer + 0x100, value)
         self.stack_pointer -= 1
 
     def pop(self):
         self.stack_pointer += 1
-        return self.get_memory(self.stack_pointer)
+        return self.get_memory(self.stack_pointer + 0x100)
 
     def adc(self, operand_address):
         """ Add with Carry """
@@ -424,26 +424,32 @@ class CPU(object):
     def rol(self, operand_address):
         if self.addressing_mode == AddressingModes.ACCUMULATOR:
             original_value = self.accumulator
-            self.accumulator = (self.accumulator << 1) + self.carry
+            self.accumulator = ((self.accumulator << 1) + self.carry)
             self.update_status_registers(self.accumulator)
         else:
             original_value = self.get_memory(operand_address)
-            new_value = (original_value << 1) + self.carry
+            new_value = ((original_value << 1) + self.carry) % 0x100
             self.update_status_registers(new_value)
             self.set_memory(operand_address, new_value)
-        self.carry = original_value & 0x80
+        if original_value & 0x80:
+            self.carry = 1
+        else:
+            self.carry = 0
 
     def ror(self, operand_address):
         if self.addressing_mode == AddressingModes.ACCUMULATOR:
             original_value = self.accumulator
-            self.accumulator = (self.accumulator >> 1) + self.carry * 0x80
+            self.accumulator = ((self.accumulator >> 1) + self.carry * 0x80) % 0x100
             self.update_status_registers(self.accumulator)
         else:
             original_value = self.get_memory(operand_address)
-            new_value = (original_value >> 1) + self.carry * 0x80
+            new_value = ((original_value >> 1) + self.carry * 0x80) % 0x100
             self.update_status_registers(new_value)
             self.set_memory(operand_address, new_value)
-        self.carry = original_value & 0x01
+        if original_value & 0x80:
+            self.carry = 1
+        else:
+            self.carry = 0
 
     def rti(self, _implied):
         self.plp(_implied)
