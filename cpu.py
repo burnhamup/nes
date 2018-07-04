@@ -129,7 +129,7 @@ class CPU(object):
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_Y:
             address = data2 * 0x100 + data
-            result = address + self.y
+            result = (address + self.y) % 0x1000
             if check_page:
                 self.check_page(address, result)
             return result
@@ -152,10 +152,10 @@ class CPU(object):
                 offset -= 0x100
             return offset
         elif addressing_mode == AddressingModes.INDIRECT:
-            address = data * 0x100 + data2
+            address = data + data2 * 0x100
             low_byte = self.get_memory(address)
             if data & 0xFF == 0xFF:
-                high_address = address | 0xFF00
+                high_address = address & 0xFF00
             else:
                 high_address = address + 1
             high_byte = self.get_memory(high_address) * 0x100
@@ -637,7 +637,7 @@ INSTRUCTIONS_MAP = {
     # LDY
     0xA0: (CPU.ldy, AddressingModes.IMMEDIATE, 2, 2),
     0xA4: (CPU.ldy, AddressingModes.ZERO_PAGE, 2, 3),
-    0xB4: (CPU.ldy, AddressingModes.ZERO_PAGE_X, 2, 3),
+    0xB4: (CPU.ldy, AddressingModes.ZERO_PAGE_X, 2, 4),
     0xAC: (CPU.ldy, AddressingModes.ABSOLUTE, 3, 4),
     0xBC: (CPU.ldy, AddressingModes.ABSOLUTE_X, 3, 4),
     # LSR
