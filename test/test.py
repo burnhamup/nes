@@ -11,7 +11,7 @@ def main():
     cpu.interrupt_disable = 1
     with open('nestest.log') as expected_output_file:
         for debug_args in cpu.tick_debug():
-            print "{:X} {:X} {} {} {} {:04X} \t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{:3d} SL:{:3d}".format(*debug_args)
+            print "{:X} {:02X} {} {} {} {:04X} \t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{:3d} SL:{:3d}".format(*debug_args)
             expected_output = expected_output_file.readline()
             expected_program_counter = int(expected_output[0:4], 16)
             expected_opcode = int(expected_output[6:8], 16)

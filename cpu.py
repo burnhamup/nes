@@ -120,23 +120,23 @@ class CPU(object):
             return data + data2 * 0x100
         elif addressing_mode == AddressingModes.ABSOLUTE_X:
             address = data + data2 * 0x100
-            result = (address + self.x) % 0x1000
+            result = (address + self.x) % 0x10000
             if check_page:
                 self.check_page(address, result)
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_X_NO_PAGE:
             address = data2 * 0x100 + data
-            result = (address + self.x) % 0x1000
+            result = (address + self.x) % 0x10000
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_Y:
             address = data2 * 0x100 + data
-            result = (address + self.y) % 0x1000
+            result = (address + self.y) % 0x10000
             if check_page:
                 self.check_page(address, result)
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_Y_NO_PAGE:
             address = data2 * 0x100 + data
-            result = (address + self.y) % 0x1000
+            result = (address + self.y) % 0x10000
             return result
         elif addressing_mode == AddressingModes.INDIRECT_X:
             low_byte = self.get_memory((data + self.x) % 0x100)
@@ -729,4 +729,33 @@ INSTRUCTIONS_MAP = {
     0x9A: (CPU.txs, AddressingModes.IMPLIED, 1, 2),
     # TYA
     0x98: (CPU.tya, AddressingModes.IMPLIED, 1, 2),
+    # UNDOCUMENTED OPCODES
+    0x04: (CPU.nop, AddressingModes.ZERO_PAGE, 2, 3),
+    0x44: (CPU.nop, AddressingModes.ZERO_PAGE, 2, 3),
+    0x64: (CPU.nop, AddressingModes.ZERO_PAGE, 2, 3),
+    0x0C: (CPU.nop, AddressingModes.ABSOLUTE, 3, 4),
+    0x14: (CPU.nop, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0x34: (CPU.nop, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0x54: (CPU.nop, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0x74: (CPU.nop, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0xD4: (CPU.nop, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0xF4: (CPU.nop, AddressingModes.ZERO_PAGE_X, 2, 4),
+    0x1A: (CPU.nop, AddressingModes.IMPLIED, 1, 2),
+    0x3A: (CPU.nop, AddressingModes.IMPLIED, 1, 2),
+    0x5A: (CPU.nop, AddressingModes.IMPLIED, 1, 2),
+    0x7A: (CPU.nop, AddressingModes.IMPLIED, 1, 2),
+    0xDA: (CPU.nop, AddressingModes.IMPLIED, 1, 2),
+    0xFA: (CPU.nop, AddressingModes.IMPLIED, 1, 2),
+    0x80: (CPU.nop, AddressingModes.IMMEDIATE, 2, 2),
+    0x82: (CPU.nop, AddressingModes.IMMEDIATE, 2, 2),
+    0x89: (CPU.nop, AddressingModes.IMMEDIATE, 2, 2),
+    0xC2: (CPU.nop, AddressingModes.IMMEDIATE, 2, 2),
+    0xE2: (CPU.nop, AddressingModes.IMMEDIATE, 2, 2),
+    0x1C: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
+    0x3C: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
+    0x5C: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
+    0x7C: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
+    0xDC: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
+    0xFC: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
+
 }
