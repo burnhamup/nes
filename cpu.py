@@ -6,13 +6,14 @@ class AddressingModes(object):
     ABSOLUTE = 5
     ABSOLUTE_X = 6
     ABSOLUTE_Y = 7
-    ABSOLUTE_X_NO_PAGE = 12
-    INDIRECT_X = 8
-    INDIRECT_Y = 9
-    ACCUMULATOR = 10
-    RELATIVE = 11
-    IMPLIED = 12
-    INDIRECT = 13
+    ABSOLUTE_Y_NO_PAGE = 8
+    ABSOLUTE_X_NO_PAGE = 9
+    INDIRECT_X = 10
+    INDIRECT_Y = 11
+    ACCUMULATOR = 12
+    RELATIVE = 13
+    IMPLIED = 14
+    INDIRECT = 15
 
 
 class CPU(object):
@@ -114,24 +115,28 @@ class CPU(object):
         elif addressing_mode == AddressingModes.ZERO_PAGE_X:
             return (data + self.x) % 0x100
         elif addressing_mode == AddressingModes.ZERO_PAGE_Y:
-            return (data + self.x) % 0x100
+            return (data + self.y) % 0x100
         elif addressing_mode == AddressingModes.ABSOLUTE:
             return data + data2 * 0x100
         elif addressing_mode == AddressingModes.ABSOLUTE_X:
-            address = data * 0x100 + data2
-            result = address + self.x
+            address = data + data2 * 0x100
+            result = (address + self.x) % 0x1000
             if check_page:
                 self.check_page(address, result)
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_X_NO_PAGE:
             address = data2 * 0x100 + data
-            result = address + self.x
+            result = (address + self.x) % 0x1000
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_Y:
             address = data2 * 0x100 + data
             result = (address + self.y) % 0x1000
             if check_page:
                 self.check_page(address, result)
+            return result
+        elif addressing_mode == AddressingModes.ABSOLUTE_Y_NO_PAGE:
+            address = data2 * 0x100 + data
+            result = (address + self.y) % 0x1000
             return result
         elif addressing_mode == AddressingModes.INDIRECT_X:
             low_byte = self.get_memory((data + self.x) % 0x100)
@@ -631,7 +636,7 @@ INSTRUCTIONS_MAP = {
     # LDX
     0xA2: (CPU.ldx, AddressingModes.IMMEDIATE, 2, 2),
     0xA6: (CPU.ldx, AddressingModes.ZERO_PAGE, 2, 3),
-    0xB6: (CPU.ldx, AddressingModes.ZERO_PAGE_Y, 2, 3),
+    0xB6: (CPU.ldx, AddressingModes.ZERO_PAGE_Y, 2, 4),
     0xAE: (CPU.ldx, AddressingModes.ABSOLUTE, 3, 4),
     0xBE: (CPU.ldx, AddressingModes.ABSOLUTE_Y, 3, 4),
     # LDY
@@ -700,17 +705,17 @@ INSTRUCTIONS_MAP = {
     0x85: (CPU.sta, AddressingModes.ZERO_PAGE, 2, 3),
     0x95: (CPU.sta, AddressingModes.ZERO_PAGE_X, 2, 4),
     0x8D: (CPU.sta, AddressingModes.ABSOLUTE, 3, 4),
-    0x9D: (CPU.sta, AddressingModes.ABSOLUTE_X, 3, 5),
-    0x99: (CPU.sta, AddressingModes.ABSOLUTE_Y, 3, 5),
+    0x9D: (CPU.sta, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 5),
+    0x99: (CPU.sta, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 5),
     0x81: (CPU.sta, AddressingModes.INDIRECT_X, 2, 6),
     0x91: (CPU.sta, AddressingModes.INDIRECT_Y, 2, 6),
     # STX
     0x86: (CPU.stx, AddressingModes.ZERO_PAGE, 2, 3),
     0x96: (CPU.stx, AddressingModes.ZERO_PAGE_Y, 2, 4),
     0x8E: (CPU.stx, AddressingModes.ABSOLUTE, 3, 4),
-    # STX
+    # STY
     0x84: (CPU.sty, AddressingModes.ZERO_PAGE, 2, 3),
-    0x94: (CPU.sty, AddressingModes.ZERO_PAGE_Y, 2, 4),
+    0x94: (CPU.sty, AddressingModes.ZERO_PAGE_X, 2, 4),
     0x8C: (CPU.sty, AddressingModes.ABSOLUTE, 3, 4),
     # TAX
     0xAA: (CPU.tax, AddressingModes.IMPLIED, 1, 2),
