@@ -138,10 +138,11 @@ class CPU(object):
             high_byte = self.get_memory((data + self.x + 1) % 0x100) * 0x100
             return low_byte + high_byte
         elif addressing_mode == AddressingModes.INDIRECT_Y:
+            # 	val = PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y
             low_byte = self.get_memory(data)
-            high_byte = self.get_memory((data + 1) % 0xFF) * 0x100
+            high_byte = self.get_memory((data + 1) % 0x100) * 0x100
             address = low_byte + high_byte
-            result = address + self.y
+            result = (address + self.y) % 0x10000
             if check_page:
                 self.check_page(address, result)
             return result
@@ -702,7 +703,7 @@ INSTRUCTIONS_MAP = {
     0x9D: (CPU.sta, AddressingModes.ABSOLUTE_X, 3, 5),
     0x99: (CPU.sta, AddressingModes.ABSOLUTE_Y, 3, 5),
     0x81: (CPU.sta, AddressingModes.INDIRECT_X, 2, 6),
-    0x91: (CPU.sta, AddressingModes.INDIRECT_Y, 2, 5),
+    0x91: (CPU.sta, AddressingModes.INDIRECT_Y, 2, 6),
     # STX
     0x86: (CPU.stx, AddressingModes.ZERO_PAGE, 2, 3),
     0x96: (CPU.stx, AddressingModes.ZERO_PAGE_Y, 2, 4),
