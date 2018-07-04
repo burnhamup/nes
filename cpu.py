@@ -73,7 +73,7 @@ class CPU(object):
     def debug_message(self):
         op_code = self.get_memory(self.program_counter)
         command, addressing_mode, number_of_bytes, cycles = INSTRUCTIONS_MAP[op_code]
-        operand = self.get_operand_address(addressing_mode)
+        operand = self.get_operand_address(addressing_mode, check_page=False)
         data1 = "{:02X}".format(self.get_memory(self.program_counter + 1)) if number_of_bytes > 1 else "  "
         data2 = "{:02X}".format(self.get_memory(self.program_counter + 2)) if number_of_bytes > 2 else "  "
         args = (
@@ -104,7 +104,7 @@ class CPU(object):
         if address1 & 0xFF00 != address2 & 0xFF00:
             self.cycles += 1
 
-    def get_operand_address(self, addressing_mode):
+    def get_operand_address(self, addressing_mode, check_page=True):
         data = self.get_memory(self.program_counter + 1)
         data2 = self.get_memory(self.program_counter + 2)
         if addressing_mode == AddressingModes.IMMEDIATE:
@@ -120,7 +120,8 @@ class CPU(object):
         elif addressing_mode == AddressingModes.ABSOLUTE_X:
             address = data * 0x100 + data2
             result = address + self.x
-            self.check_page(address, result)
+            if check_page:
+                self.check_page(address, result)
             return result
         elif addressing_mode == AddressingModes.ABSOLUTE_X_NO_PAGE:
             address = data2 * 0x100 + data
@@ -129,18 +130,20 @@ class CPU(object):
         elif addressing_mode == AddressingModes.ABSOLUTE_Y:
             address = data2 * 0x100 + data
             result = address + self.y
-            self.check_page(address, result)
+            if check_page:
+                self.check_page(address, result)
             return result
         elif addressing_mode == AddressingModes.INDIRECT_X:
-            low_byte = self.get_memory((data + self.x) % 0xFF)
-            high_byte = self.get_memory((data + self.x + 1) % 0xFF) * 0x100
+            low_byte = self.get_memory((data + self.x) % 0x100)
+            high_byte = self.get_memory((data + self.x + 1) % 0x100) * 0x100
             return low_byte + high_byte
         elif addressing_mode == AddressingModes.INDIRECT_Y:
             low_byte = self.get_memory(data)
             high_byte = self.get_memory((data + 1) % 0xFF) * 0x100
             address = low_byte + high_byte
             result = address + self.y
-            self.check_page(address, result)
+            if check_page:
+                self.check_page(address, result)
             return result
         elif addressing_mode == AddressingModes.RELATIVE:
             offset = data
@@ -199,8 +202,6 @@ class CPU(object):
             self.overflow = 0
 
         self.accumulator = result % 0x100
-
-
         self.update_status_registers(self.accumulator)
 
     def and_(self, operand_address):
@@ -424,7 +425,7 @@ class CPU(object):
     def rol(self, operand_address):
         if self.addressing_mode == AddressingModes.ACCUMULATOR:
             original_value = self.accumulator
-            self.accumulator = ((self.accumulator << 1) + self.carry)
+            self.accumulator = ((self.accumulator << 1) + self.carry) % 0x100
             self.update_status_registers(self.accumulator)
         else:
             original_value = self.get_memory(operand_address)
@@ -446,7 +447,7 @@ class CPU(object):
             new_value = ((original_value >> 1) + self.carry * 0x80) % 0x100
             self.update_status_registers(new_value)
             self.set_memory(operand_address, new_value)
-        if original_value & 0x80:
+        if original_value & 0x01:
             self.carry = 1
         else:
             self.carry = 0
@@ -628,13 +629,13 @@ INSTRUCTIONS_MAP = {
     0xB1: (CPU.lda, AddressingModes.INDIRECT_Y, 2, 5),
     # LDX
     0xA2: (CPU.ldx, AddressingModes.IMMEDIATE, 2, 2),
-    0xA6: (CPU.ldx, AddressingModes.ZERO_PAGE, 2, 2,),
+    0xA6: (CPU.ldx, AddressingModes.ZERO_PAGE, 2, 3),
     0xB6: (CPU.ldx, AddressingModes.ZERO_PAGE_Y, 2, 3),
     0xAE: (CPU.ldx, AddressingModes.ABSOLUTE, 3, 4),
     0xBE: (CPU.ldx, AddressingModes.ABSOLUTE_Y, 3, 4),
     # LDY
     0xA0: (CPU.ldy, AddressingModes.IMMEDIATE, 2, 2),
-    0xA4: (CPU.ldy, AddressingModes.ZERO_PAGE, 2, 2,),
+    0xA4: (CPU.ldy, AddressingModes.ZERO_PAGE, 2, 3),
     0xB4: (CPU.ldy, AddressingModes.ZERO_PAGE_X, 2, 3),
     0xAC: (CPU.ldy, AddressingModes.ABSOLUTE, 3, 4),
     0xBC: (CPU.ldy, AddressingModes.ABSOLUTE_X, 3, 4),
