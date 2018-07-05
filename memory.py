@@ -16,7 +16,7 @@ class Memory(object):
         elif address < 0x4020:
             return self.disabled[address - 0x4018]
         else:
-            return self.rom.get_address(address - 0x4020)
+            return self.rom.get_address(address)
 
     def set_memory(self, address, value):
         if address < 0x2000:
@@ -28,4 +28,4 @@ class Memory(object):
         elif address < 0x4020:
             self.disabled[address - 0x4018] = value
         else:
-            self.rom.set_address(address - 0x4020, value)
+            self.rom.set_address(address, value)

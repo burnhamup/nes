@@ -37,6 +37,8 @@ def main():
             assert debug_args[11] == expected_cycles
             if debug_args[11] == 188 and debug_args[12] == 212:
                 break
+        print memory.get_memory(0x02)
+        print memory.get_memory(0x03)
 
 if __name__ == '__main__':
     main()
