@@ -35,6 +35,8 @@ def main():
             assert debug_args[9] == expected_status_registers
             assert debug_args[10] == expected_stack_pointer
             assert debug_args[11] == expected_cycles
+            if debug_args[11] == 188 and debug_args[12] == 212:
+                break
 
 if __name__ == '__main__':
     main()

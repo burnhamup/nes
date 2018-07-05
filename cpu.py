@@ -536,7 +536,7 @@ class CPU(object):
         self.dec(operand_address)
         self.cmp(operand_address)
 
-    def isc(self, operand_address):
+    def isb(self, operand_address):
         self.inc(operand_address)
         self.sbc(operand_address)
 
@@ -812,6 +812,46 @@ INSTRUCTIONS_MAP = {
     0xD7: (CPU.dcp, AddressingModes.ZERO_PAGE_X, 2, 6),
     0xDB: (CPU.dcp, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 7),
     0xDF: (CPU.dcp, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # ISC
+    0xE3: (CPU.isb, AddressingModes.INDIRECT_X, 2, 8),
+    0xE7: (CPU.isb, AddressingModes.ZERO_PAGE, 2, 5),
+    0xEF: (CPU.isb, AddressingModes.ABSOLUTE, 3, 6),
+    0xF3: (CPU.isb, AddressingModes.INDIRECT_Y_NO_PAGE, 2, 8),
+    0xF7: (CPU.isb, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0xFB: (CPU.isb, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 7),
+    0xFF: (CPU.isb, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # RLA
+    0x23: (CPU.rla, AddressingModes.INDIRECT_X, 2, 8),
+    0x27: (CPU.rla, AddressingModes.ZERO_PAGE, 2, 5),
+    0x2F: (CPU.rla, AddressingModes.ABSOLUTE, 3, 6),
+    0x33: (CPU.rla, AddressingModes.INDIRECT_Y_NO_PAGE, 2, 8),
+    0x37: (CPU.rla, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0x3B: (CPU.rla, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 7),
+    0x3F: (CPU.rla, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # RRA
+    0x63: (CPU.rra, AddressingModes.INDIRECT_X, 2, 8),
+    0x67: (CPU.rra, AddressingModes.ZERO_PAGE, 2, 5),
+    0x6F: (CPU.rra, AddressingModes.ABSOLUTE, 3, 6),
+    0x73: (CPU.rra, AddressingModes.INDIRECT_Y_NO_PAGE, 2, 8),
+    0x77: (CPU.rra, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0x7B: (CPU.rra, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 7),
+    0x7F: (CPU.rra, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # SLO
+    0x03: (CPU.slo, AddressingModes.INDIRECT_X, 2, 8),
+    0x07: (CPU.slo, AddressingModes.ZERO_PAGE, 2, 5),
+    0x0F: (CPU.slo, AddressingModes.ABSOLUTE, 3, 6),
+    0x13: (CPU.slo, AddressingModes.INDIRECT_Y_NO_PAGE, 2, 8),
+    0x17: (CPU.slo, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0x1B: (CPU.slo, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 7),
+    0x1F: (CPU.slo, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+    # SRE
+    0x43: (CPU.sre, AddressingModes.INDIRECT_X, 2, 8),
+    0x47: (CPU.sre, AddressingModes.ZERO_PAGE, 2, 5),
+    0x4F: (CPU.sre, AddressingModes.ABSOLUTE, 3, 6),
+    0x53: (CPU.sre, AddressingModes.INDIRECT_Y_NO_PAGE, 2, 8),
+    0x57: (CPU.sre, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0x5B: (CPU.sre, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 7),
+    0x5F: (CPU.sre, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
 
 
 
