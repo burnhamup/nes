@@ -14,6 +14,7 @@ class AddressingModes(object):
     RELATIVE = 13
     IMPLIED = 14
     INDIRECT = 15
+    INDIRECT_Y_NO_PAGE = 16
 
 
 class CPU(object):
@@ -142,13 +143,13 @@ class CPU(object):
             low_byte = self.get_memory((data + self.x) % 0x100)
             high_byte = self.get_memory((data + self.x + 1) % 0x100) * 0x100
             return low_byte + high_byte
-        elif addressing_mode == AddressingModes.INDIRECT_Y:
+        elif addressing_mode in (AddressingModes.INDIRECT_Y, AddressingModes.INDIRECT_Y_NO_PAGE):
             # 	val = PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y
             low_byte = self.get_memory(data)
             high_byte = self.get_memory((data + 1) % 0x100) * 0x100
             address = low_byte + high_byte
             result = (address + self.y) % 0x10000
-            if check_page:
+            if check_page and addressing_mode == AddressingModes.INDIRECT_Y:
                 self.check_page(address, result)
             return result
         elif addressing_mode == AddressingModes.RELATIVE:
@@ -175,7 +176,7 @@ class CPU(object):
         else:
             self.zero = 0
 
-        if value >= 0x80 or value < 0:
+        if (value % 0x100) >= 0x80:
             self.negative = 1
         else:
             self.negative = 0
@@ -523,6 +524,38 @@ class CPU(object):
         self.accumulator = self.y
         self.update_status_registers(self.accumulator)
 
+    def lax(self, operand_address):
+        self.lda(operand_address)
+        self.tax(operand_address)
+
+    def sax(self, operand_address):
+        result = self.x & self.accumulator
+        self.set_memory(operand_address, result)
+
+    def dcp(self, operand_address):
+        self.dec(operand_address)
+        self.cmp(operand_address)
+
+    def isc(self, operand_address):
+        self.inc(operand_address)
+        self.sbc(operand_address)
+
+    def rla(self, operand_address):
+        self.rol(operand_address)
+        self.and_(operand_address)
+
+    def rra(self, operand_address):
+        self.ror(operand_address)
+        self.adc(operand_address)
+
+    def slo(self, operand_address):
+        self.asl(operand_address)
+        self.ora(operand_address)
+
+    def sre(self, operand_address):
+        self.lsr(operand_address)
+        self.eor(operand_address)
+
 
 INSTRUCTIONS_MAP = {
     # ADC
@@ -757,5 +790,30 @@ INSTRUCTIONS_MAP = {
     0x7C: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
     0xDC: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
     0xFC: (CPU.nop, AddressingModes.ABSOLUTE_X, 3, 4),
+    # LAX
+    0xA3: (CPU.lax, AddressingModes.INDIRECT_X,2, 6),
+    0xA7: (CPU.lax, AddressingModes.ZERO_PAGE,2, 3),
+    0xAF: (CPU.lax, AddressingModes.ABSOLUTE, 3, 4),
+    0xB3: (CPU.lax, AddressingModes.INDIRECT_Y, 2, 5),
+    0xB7: (CPU.lax, AddressingModes.ZERO_PAGE_Y, 2, 4),
+    0xBF: (CPU.lax, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 4),
+    # SAX
+    0x83: (CPU.sax, AddressingModes.INDIRECT_X, 2, 6),
+    0x87: (CPU.sax, AddressingModes.ZERO_PAGE, 2, 3),
+    0x8F: (CPU.sax, AddressingModes.ABSOLUTE, 3, 4),
+    0x97: (CPU.sax, AddressingModes.ZERO_PAGE_Y, 2, 4),
+    # SBC (dupe)
+    0xEB: (CPU.sbc, AddressingModes.IMMEDIATE, 2, 2),
+    # DCP
+    0xC3: (CPU.dcp, AddressingModes.INDIRECT_X, 2, 8),
+    0xC7: (CPU.dcp, AddressingModes.ZERO_PAGE, 2, 5),
+    0xCF: (CPU.dcp, AddressingModes.ABSOLUTE, 3, 6),
+    0xD3: (CPU.dcp, AddressingModes.INDIRECT_Y_NO_PAGE, 2, 8),
+    0xD7: (CPU.dcp, AddressingModes.ZERO_PAGE_X, 2, 6),
+    0xDB: (CPU.dcp, AddressingModes.ABSOLUTE_Y_NO_PAGE, 3, 7),
+    0xDF: (CPU.dcp, AddressingModes.ABSOLUTE_X_NO_PAGE, 3, 7),
+
+
+
 
 }
